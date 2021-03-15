@@ -93,7 +93,7 @@ server:
 app:
   id: sentinel-apollo-demo # apollo applicaiton.id
 apollo:
-  meta: http://192.168.8.240:8080 # apollo-config-service address
+  meta: http://localhost:8080 # apollo-config-service eureka.address
 ```
 
 （3）打开 Apollo Web
@@ -138,7 +138,7 @@ public class DemoController {
                 apolloConfigBean.getTimeout(),
                 apolloConfigBean.getHello()
         );
-        return "index";
+        return "timout: ["+apolloConfigBean.getTimeout()+"], hello: ["+apolloConfigBean.getHello()+"]";
     }
 
 }
@@ -170,3 +170,11 @@ GET localhost:8081/index
 ```
 
 > 无论在 Apollo Web 怎么修改都好, 记得点击“发布”, 数据才会同步的
+
+
+## 2-5 Apollo第三方授权
+
+- 管理员工具 
+  - 开放平台来对配置进行管理
+  
+![](.README_images/a3043267.png)
