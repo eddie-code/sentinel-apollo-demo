@@ -154,3 +154,15 @@ public class DemoController {
 ![](.README_images/23fc41eb.png)
 
 (2) 如果1s之内请求数大于5且有20%的请求都超过200ms没有反应，那么接下来的1s之内的请求会自动熔断。经过1s后，如果接下来的一个请求响应时间小于200ms就可以结束熔断，否则继续熔断
+
+## 1-17 哨兵SpringAOP注解方式应用-2
+
+- 注释之前 SentinelApplication 的策略
+- Maven依赖 （sentinel-annotation-aspectj）
+- 创建类
+    - com.example.apollo.config.SentinelAspectConfiguration
+    - com.example.apollo.service.FlowService
+    - com.example.apollo.service.impl.FlowServiceImpl
+    - com.example.apollo.controller.SentinelAnnotationController
+    
+![](.README_images/6cd88080.png)
