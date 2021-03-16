@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * @author eddie.lee
  * @ProjectName sentinel-apollo-demo
- * @Package com.example.apollo
+ * @Package apollo
  * @ClassName DemoController
  * @description
  * @date created in 2021-03-14 23:03

@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Configuration;
 /**
  * @author eddie.lee
  * @ProjectName sentinel-apollo-demo
- * @Package com.example.apollo
+ * @Package apollo
  * @ClassName ApolloConfigBean
  * @description
  * @date created in 2021-03-14 22:59

@@ -1,0 +1,33 @@
+###################################################
+#
+#    Spring基础配置
+#
+###################################################
+spring:
+  application:
+    name: apollo-demo
+  http:
+    encoding:
+      charset: utf-8
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    default-property-inclusion: non_null
+###################################################
+#
+#    Server基础配置
+#
+###################################################
+server:
+  port: 8081
+  servlet:
+    context-path: /
+###################################################
+#
+#    Apollo基础配置
+#
+###################################################
+app:
+  id: sentinel-apollo-demo # apollo applicaiton.id
+apollo:
+  meta: http://192.168.8.240:8080 # apollo-config-service address

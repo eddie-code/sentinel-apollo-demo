@@ -9,7 +9,7 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 /**
  * @author eddie.lee
  * @ProjectName sentinel-apollo-demo
- * @Package com.example.apollo
+ * @Package apollo
  * @ClassName Application
  * @description
  * @date created in 2021-03-14 22:55
@@ -17,10 +17,10 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
  */
 @EnableApolloConfig
 @SpringBootApplication
-public class Application {
+public class ApolloApplication {
 
     public static void main(String[] args) {
-        new SpringApplicationBuilder(Application.class)
+        new SpringApplicationBuilder(ApolloApplication.class)
                 .web(WebApplicationType.SERVLET)
                 .bannerMode(Banner.Mode.OFF)
                 .run(args);

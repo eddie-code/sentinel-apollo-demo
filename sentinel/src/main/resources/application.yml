@@ -5,7 +5,7 @@
 ###################################################
 spring:
   application:
-    name: sentinel-apollo-demo
+    name: sentinel-demo
   http:
     encoding:
       charset: utf-8
@@ -19,15 +19,6 @@ spring:
 #
 ###################################################
 server:
-  port: 8081
+  port: 8082
   servlet:
     context-path: /
-###################################################
-#
-#    Apollo基础配置
-#
-###################################################
-app:
-  id: sentinel-apollo-demo # apollo applicaiton.id
-apollo:
-  meta: http://192.168.8.240:8080 # apollo-config-service address
