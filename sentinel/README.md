@@ -114,3 +114,43 @@ public class DemoController {
     }
 }
 ```
+
+## 1-15 哨兵控制台集成详解-2
+
+### 异常数
+
+- 降级规则 (异常数)
+  - GET http://localhost:8082/degrade
+  - 实时监控会显示图形化
+  - 簇点链路
+    - 出现 "com.example.apollo.controller.DemoController:degrade:selectDegrade"
+    - 降级 --> 异常数=2 --> 统计时长=1000
+  
+![](.README_images/850e88eb.png)
+
+![](.README_images/4b5294ae.png)
+
+![](.README_images/a793a127.png)
+
+<br>
+
+### 慢调用比例-RT
+
+- 降级规则 (慢调用比例-RT)
+  - GET http://localhost:8082/degrade
+  - 实时监控会显示图形化
+  - 簇点链路
+    - 出现 "com.example.apollo.controller.DemoController:degrade:selectDegrade"
+    - 降级 --> 慢调用比例
+
+<br>
+
+>选择以慢调用比例作为阈值，需要设置允许的慢调用 RT（即最大的响应时间），请求的响应时间大于该值则统计为慢调用。当单位统计时长（statIntervalMs）内请求数目大于设置的最小请求数目，并且慢调用的比例大于阈值，则接下来的熔断时长内请求会自动被熔断。经过熔断时长后熔断器会进入探测恢复状态（HALF-OPEN 状态），若接下来的一个请求响应时间小于设置的慢调用 RT 则结束熔断，若大于设置的慢调用 RT 则会再次被熔断。
+
+<br>
+
+(1) 添加降级规则
+
+![](.README_images/23fc41eb.png)
+
+(2) 如果1s之内请求数大于5且有20%的请求都超过200ms没有反应，那么接下来的1s之内的请求会自动熔断。经过1s后，如果接下来的一个请求响应时间小于200ms就可以结束熔断，否则继续熔断

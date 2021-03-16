@@ -1,5 +1,6 @@
 package com.example.apollo.controller;
 
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -20,7 +21,7 @@ import com.alibaba.csp.sentinel.slots.block.degrade.DegradeException;
 @RestController
 public class DemoController {
 
-    @RequestMapping("/flow")
+    @GetMapping("/flow")
     public String flow() throws InterruptedException {
         Entry entry = null;
         try {
@@ -39,6 +40,36 @@ public class DemoController {
             }
         }
         return "flow";
+    }
+
+    private int count  = 0;
+
+    @GetMapping("/degrade")
+    public String degrade() throws Exception {
+        Entry entry = null;
+        try {
+            // resouceName:
+            String resouceName = "com.example.apollo.controller.DemoController:degrade:selectDegrade";
+            //	2.1 定义资源名称
+            entry = SphU.entry(resouceName);
+            //	2.2 执行资源逻辑代码
+            count++;
+            if (count % 2 == 0) {
+                Thread.sleep(100);
+                System.err.println("degrade--> 执行正常 100 ms ");
+//                throw new Exception("degrade--> 抛出异常");
+            } else {
+                Thread.sleep(20);
+                System.err.println("degrade--> 执行正常 20 ms ");
+            }
+        } catch (BlockException e) {
+            System.err.println("要访问的资源被降级了, 执行降级逻辑！");
+        } finally {
+            if (entry != null) {
+                entry.exit();
+            }
+        }
+        return "degrade";
     }
 
 }
