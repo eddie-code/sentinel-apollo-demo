@@ -184,3 +184,45 @@ public class DemoController {
 ----> 触发异常时的降级策略：java.lang.RuntimeException: 1.2.4.7 不等于 0, 抛出业务异常：0
 ----> 触发降级流控策略：com.alibaba.csp.sentinel.slots.block.degrade.DegradeException
 ```
+
+## 1-19 哨兵与主流框架的适配使用
+
+[Github Sentinel SSH Download Demo](git@github.com:alibaba/Sentinel.git)
+
+### Dubbo Demo - src
+
+> 先启动： sentinel-dashboard jvm : <br><br>
+>-Dserver.port=8080 <br>
+ -Dcsp.sentinel.dashboard.server=localhost:8080 <br>
+ -Dproject.name=sentinel-dashboard <br>
+ -Dsentinel.dashboard.auth.username=eddie <br>
+ -Dsentinel.dashboard.auth.password=123456
+
+Sentinel ---> sentinel-demo ---> sentinel-demo-dubbo
+
+启动 com.alibaba.csp.sentinel.demo.dubbo.demo1.FooProviderBootstrap
+
+Please add the following VM arguments:
+```java
+-Djava.net.preferIPv4Stack=true
+-Dcsp.sentinel.api.port=8720
+-Dproject.name=dubbo-provider-demo
+-Dcsp.sentinel.dashboard.server=localhost:8080
+```
+
+启动 com.alibaba.csp.sentinel.demo.dubbo.demo1.FooConsumerBootstrap
+
+Please add the following VM arguments:
+```java
+-Djava.net.preferIPv4Stack=true
+-Dcsp.sentinel.api.port=8721
+-Dproject.name=dubbo-consumer-demo
+-Dcsp.sentinel.dashboard.server=localhost:8080
+```
+
+登录 http://localhost:8080 查看 demo 的降级手段
+
+### Rocketmq Demo -src
+
+> Rocketmq 本身就有自己的流控策略, 所以可以不使用 sentinel 实现
+
