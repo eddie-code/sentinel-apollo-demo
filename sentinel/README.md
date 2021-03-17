@@ -157,6 +157,8 @@ public class DemoController {
 
 ## 1-17 哨兵SpringAOP注解方式应用-2
 
+### 流控策略
+
 - 注释之前 SentinelApplication 的策略
 - Maven依赖 （sentinel-annotation-aspectj）
 - 创建类
@@ -166,3 +168,19 @@ public class DemoController {
     - com.example.apollo.controller.SentinelAnnotationController
     
 ![](.README_images/6cd88080.png)
+
+## 1-18 哨兵SpringAOP注解方式应用-3
+
+### 降级-流控策略
+
+![](.README_images/9eb6f10d.png)
+
+> 1秒大于10次就会降级, 就会触发 com.example.apollo.service.impl.DegradeServiceImpl.degradeBlockHandler <br>  打印 "----> 触发降级流控策略：" + ex
+
+在疯狂刷新 "http://localhost:8082/degrade-test" 的同时，IDEA终端会不停的刷打印
+
+```text
+----> 正常执行degrade方法
+----> 触发异常时的降级策略：java.lang.RuntimeException: 1.2.4.7 不等于 0, 抛出业务异常：0
+----> 触发降级流控策略：com.alibaba.csp.sentinel.slots.block.degrade.DegradeException
+```
