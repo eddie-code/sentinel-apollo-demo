@@ -189,6 +189,8 @@ public class DemoController {
 
 [Github Sentinel SSH Download Demo](git@github.com:alibaba/Sentinel.git)
 
+[主流框架的适配](https://github.com/alibaba/Sentinel/wiki/%E4%B8%BB%E6%B5%81%E6%A1%86%E6%9E%B6%E7%9A%84%E9%80%82%E9%85%8D#dubbo)
+
 ### Dubbo Demo - src
 
 > 先启动： sentinel-dashboard jvm : <br><br>
@@ -225,4 +227,13 @@ Please add the following VM arguments:
 ### Rocketmq Demo -src
 
 > Rocketmq 本身就有自己的流控策略, 所以可以不使用 sentinel 实现
+
+
+## 1-20 哨兵集群流控策与替代方案分享
+
+- [Sentinel 1.4+ New_集群流控_繁琐_（不推荐）](https://github.com/alibaba/Sentinel/wiki/%E9%9B%86%E7%BE%A4%E6%B5%81%E6%8E%A7) <br>
+- [Sentinel 1.6+ New_网关限流_支持对 Spring Cloud Gateway、Zuul 等主流的 API Gateway 进行限流_（推荐）](https://github.com/alibaba/Sentinel/wiki/%E7%BD%91%E5%85%B3%E9%99%90%E6%B5%81)
+
+
+
 
