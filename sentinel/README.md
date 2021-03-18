@@ -233,7 +233,3 @@ Please add the following VM arguments:
 
 - [Sentinel 1.4+ New_集群流控_繁琐_（不推荐）](https://github.com/alibaba/Sentinel/wiki/%E9%9B%86%E7%BE%A4%E6%B5%81%E6%8E%A7) <br>
 - [Sentinel 1.6+ New_网关限流_支持对 Spring Cloud Gateway、Zuul 等主流的 API Gateway 进行限流_（推荐）](https://github.com/alibaba/Sentinel/wiki/%E7%BD%91%E5%85%B3%E9%99%90%E6%B5%81)
-
-
-
-
