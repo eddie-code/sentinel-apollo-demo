@@ -577,3 +577,69 @@ public class ApolloConfig implements InitializingBean {
 }
 ```
 
+## 2-9 Sentinel整合Apollo配置文件解析与ApolloOpenApiClient创建-2
+
+- 屏蔽 sentinel-dashboard # pom.xml # apollo-openapi 的 scope
+```xml
+<!-- for Apollo rule publisher sample -->
+<dependency>
+    <groupId>com.ctrip.framework.apollo</groupId>
+    <artifactId>apollo-openapi</artifactId>
+    <version>1.2.0</version>
+    <!-- <scope>test</scope> -->
+</dependency>
+```
+
+- 创建工具类 com.alibaba.csp.sentinel.dashboard.rule.apollo.ApolloConfigUtil
+```java
+public final class ApolloConfigUtil {
+
+    /**
+     * 流控
+     * *-flow-rules
+     * apollo-test-flow-rules
+     */
+    private static final String FLOW_RULE_TYPE = "flow";
+    private static final String FLOW_DATA_ID_POSTFIX = "-" + FLOW_RULE_TYPE + "-rules";
+
+    public static String getFlowDataId(String appName) {
+        return String.format("%s%s", appName, FLOW_DATA_ID_POSTFIX);
+    }
+
+
+    /**
+     * 降级
+     * *-degrade-rules
+     * apollo-test-degrade-rules
+     */
+    private static final String DEGRADE_RULE_TYPE = "degrade";
+    private static final String DEGRADE_DATA_ID_POSTFIX = "-" + DEGRADE_RULE_TYPE + "-rules";
+
+    public static String getDegradeDataId(String appName) {
+        return String.format("%s%s", appName, DEGRADE_DATA_ID_POSTFIX);
+    }
+
+    private static ConcurrentHashMap<String, ApolloOpenApiClient> APOLLOOPENAPICLIENTMAP = new ConcurrentHashMap<>();
+
+    public static ApolloOpenApiClient createApolloOpenApiClient(String appName) {
+        ApolloOpenApiClient client = APOLLOOPENAPICLIENTMAP.get(appName);
+        if (client != null) {
+            return client;
+        } else {
+            String token = ApolloConfig.tokenMap.get(appName);
+            if (StringUtils.isNotBlank(token)) {
+                client = ApolloOpenApiClient
+                        .newBuilder()
+                        .withPortalUrl(ApolloConfig.URL)
+                        .withToken(token)
+                        .build();
+                APOLLOOPENAPICLIENTMAP.putIfAbsent(appName, client);
+                return client;
+            } else {
+                System.out.println("根据指定的appName: " + appName + ", 找不到对应的token");
+                return null;
+            }
+        }
+    }
+}
+```
