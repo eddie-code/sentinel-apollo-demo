@@ -2,6 +2,10 @@
 
 # 目录
 
+- 版本
+  - Sentinel 控制台 1.8.2
+  - 
+
 ##  2-1 本章概述
 
 - Sentinel 生产环境下如何使用
@@ -284,27 +288,59 @@ GET localhost:8081/index
 -Dproject.name=apollo-test
 ```
 
-（三）修改 Sentinel --> sentinel-dashboard --> application.properties (最底部追加, 不修改原有配置)
+## 2-{8,12} Sentinel-dashboard 项目修改
+
+（一） 需要创建与修改的文件
+
+![](.README_images/5c7c81ba.png)
+
+修改 Sentinel --> sentinel-dashboard --> application.properties (最底部追加, 不修改原有配置)
 ```properties
+#spring settings
+spring.http.encoding.force=true
+spring.http.encoding.charset=UTF-8
+spring.http.encoding.enabled=true
+
+#cookie name setting
+server.servlet.session.cookie.name=sentinel_dashboard_cookie
+
+#logging settings
+logging.level.org.springframework.web=INFO
+logging.file=${user.home}/logs/csp/sentinel-dashboard.log
+logging.pattern.file= %d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n
+#logging.pattern.console= %d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n
+
+#auth settings
+auth.filter.exclude-urls=/,/auth/login,/auth/logout,/registry/machine,/version
+auth.filter.exclude-url-suffixes=htm,html,js,css,map,ico,ttf,woff,png
+# If auth.enabled=false, Sentinel console disable login
+auth.username=sentinel
+auth.password=sentinel
+
+# Inject the dashboard version. It's required to enable
+# filtering in pom.xml for this resource file.
+sentinel.dashboard.version=@project.version@
+
 ########################################
 ## apollo配置信息
 ########################################
 
 ## apollo服务地址
-apollo.portal.url=http://192.168.8.240:8070/
+apollo.portal.url=http://192.168.8.240:8070
 
 ## 组合使用
 ## 应用服务名称：apollo-test (这个是 sentinel-apollo-demo --> apollo --> 修改 jvm 参数：-Dproject.name=apollo-test)
 ## apollo token: 540a316e923ad32669b0e3c12b5152165fe602f2
 ## apollo appId: sentinel-apollo-demo (这个是 sentinel-apollo-demo -> apollo -> application.yml # app.id 的参数)
 ## apollo thirdId：sentinel-apollo-demo-id (第三方应用ID)
-apollo.portal.appNameConfigList[0]=apollo-test:540a316e923ad32669b0e3c12b5152165fe602f2:sentinel-apollo-demo：sentinel-apollo-demo-id
+apollo.portal.appNameConfigList[0]=apollo-test:540a316e923ad32669b0e3c12b5152165fe602f2:sentinel-apollo-demo:sentinel-apollo-demo-id
 
 ## 所属环境
 apollo.portal.env=DEV
 
 ## 管理用户
-#apollo.portal.userId=eddie
+apollo.portal.username=eddie
+apollo.portal.password=123456
 
 ## 集群名称
 apollo.portal.clusterName=default
@@ -315,13 +351,7 @@ apollo.portal.nameSpace=application
 
 > Apollo Web 查看 apollo token  <br> 1. 管理员工具 <br> 2. 开放平台授权管理
 
-（四）Sentinel --> sentinel-dashboard 创建 package 
-
-```text
-com.alibaba.csp.sentinel.dashboard.rule.apollo
-```
-
-创建 com.alibaba.csp.sentinel.dashboard.rule.apollo.ApolloConfig
+com.alibaba.csp.sentinel.dashboard.rule.apollo.ApolloConfig
 ```java
 package com.alibaba.csp.sentinel.dashboard.rule.apollo;
 
@@ -354,6 +384,9 @@ import java.util.concurrent.ConcurrentHashMap;
 @ComponentScan("com.alibaba.csp.sentinel.dashboard.rule.apollo")
 public class ApolloConfig implements InitializingBean {
 
+    /**
+     *  USERNAME && PASSWORD 默认在 apollo是没有的，需要在页面手动创建账户密码
+     */
     public static String USERNAME = "eddie";
     public static String PASSWORD = "eddie";
     public static String ENV = "dev";
@@ -394,7 +427,7 @@ public class ApolloConfig implements InitializingBean {
         ApolloConfig.URL = url;
 
         this.appNameConfigList.forEach(item -> {
-            String[] items = url.split(":");
+            String[] items = item.split(":");
             if (items.length == 4) {
                 String applicationName = items[0];
                 String token = items[1];
@@ -402,8 +435,8 @@ public class ApolloConfig implements InitializingBean {
                 String thirdId = items[3];
 
                 thirdIdMap.putIfAbsent(appId, thirdId);
-                appIdMap.putIfAbsent(applicationName, token);
-                tokenMap.putIfAbsent(applicationName, appId);
+                appIdMap.putIfAbsent(applicationName, appId);
+                tokenMap.putIfAbsent(applicationName, token);
             }
         });
     }
@@ -577,21 +610,25 @@ public class ApolloConfig implements InitializingBean {
 }
 ```
 
-## 2-9 Sentinel整合Apollo配置文件解析与ApolloOpenApiClient创建-2
-
-- 屏蔽 sentinel-dashboard # pom.xml # apollo-openapi 的 scope
-```xml
-<!-- for Apollo rule publisher sample -->
-<dependency>
-    <groupId>com.ctrip.framework.apollo</groupId>
-    <artifactId>apollo-openapi</artifactId>
-    <version>1.2.0</version>
-    <!-- <scope>test</scope> -->
-</dependency>
-```
-
-- 创建工具类 com.alibaba.csp.sentinel.dashboard.rule.apollo.ApolloConfigUtil
+com.alibaba.csp.sentinel.dashboard.rule.apollo.ApolloConfigUtil
 ```java
+package com.alibaba.csp.sentinel.dashboard.rule.apollo;
+
+
+import com.ctrip.framework.apollo.openapi.client.ApolloOpenApiClient;
+import org.apache.commons.lang.StringUtils;
+
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * @author eddie.lee
+ * @ProjectName sentinel-parent
+ * @Package com.alibaba.csp.sentinel.dashboard.rule.apollo
+ * @ClassName ApolloConfig
+ * @description
+ * @date created in 2021-03-18 16:08
+ * @modified by
+ */
 public final class ApolloConfigUtil {
 
     /**
@@ -621,15 +658,25 @@ public final class ApolloConfigUtil {
 
     private static ConcurrentHashMap<String, ApolloOpenApiClient> APOLLOOPENAPICLIENTMAP = new ConcurrentHashMap<>();
 
+    /**
+     *
+     * <!-- for Apollo rule publisher sample -->
+     * <dependency>
+     * <groupId>com.ctrip.framework.apollo</groupId>
+     * <artifactId>apollo-openapi</artifactId>
+     * <version>1.2.0</version>
+     * <!--<scope>test</scope>-->   屏蔽了 才能导入 ApolloOpenApiClient 类
+     * </dependency>
+     */
     public static ApolloOpenApiClient createApolloOpenApiClient(String appName) {
         ApolloOpenApiClient client = APOLLOOPENAPICLIENTMAP.get(appName);
+        System.out.println(client);
         if (client != null) {
             return client;
         } else {
             String token = ApolloConfig.tokenMap.get(appName);
             if (StringUtils.isNotBlank(token)) {
-                client = ApolloOpenApiClient
-                        .newBuilder()
+                client = ApolloOpenApiClient.newBuilder()
                         .withPortalUrl(ApolloConfig.URL)
                         .withToken(token)
                         .build();
@@ -641,5 +688,636 @@ public final class ApolloConfigUtil {
             }
         }
     }
+
+    public static String getAppIdWithAppName(String appName) {
+        return ApolloConfig.appIdMap.get(appName);
+    }
 }
 ```
+
+com.alibaba.csp.sentinel.dashboard.rule.apollo.FlowRuleApolloProvider
+```java
+package com.alibaba.csp.sentinel.dashboard.rule.apollo;
+
+import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.FlowRuleEntity;
+import com.alibaba.csp.sentinel.dashboard.rule.DynamicRuleProvider;
+import com.alibaba.csp.sentinel.datasource.Converter;
+import com.ctrip.framework.apollo.openapi.client.ApolloOpenApiClient;
+import com.ctrip.framework.apollo.openapi.dto.OpenItemDTO;
+import com.ctrip.framework.apollo.openapi.dto.OpenNamespaceDTO;
+import org.apache.commons.lang.StringUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+/**
+ * @author eddie.lee
+ * @ProjectName sentinel-parent
+ * @Package com.alibaba.csp.sentinel.dashboard.rule.apollo
+ * @ClassName FlowRuleApolloProvider
+ * @description
+ * @date created in 2021-03-22 9:40
+ * @modified by
+ */
+@Component("flowRuleApolloProvider")
+public class FlowRuleApolloProvider implements DynamicRuleProvider<List<FlowRuleEntity>> {
+
+    @Autowired
+    private Converter<String, List<FlowRuleEntity>> converter;
+
+    @Override
+    public List<FlowRuleEntity> getRules(String appName) throws Exception {
+
+        ApolloOpenApiClient client = ApolloConfigUtil.createApolloOpenApiClient(appName);
+        if (client != null) {
+            // 具体的流控规则id
+            String flowDataId = ApolloConfigUtil.getFlowDataId(appName);
+            // apollo的应用服务appId
+            String appId = ApolloConfigUtil.getAppIdWithAppName(appName);
+
+            OpenNamespaceDTO dto = client.getNamespace(appId, ApolloConfig.ENV, ApolloConfig.CLUSTER_NAME, ApolloConfig.NAMESPACE);
+
+            String rules = dto.getItems().stream().filter(item -> item.getKey().equals(flowDataId))
+                    .map(OpenItemDTO::getValue)
+                    .findFirst().orElse("");
+
+            if (StringUtils.isEmpty(rules)) {
+                return new ArrayList<>();
+            }
+
+            return converter.convert(rules);
+
+        } else {
+            return Collections.emptyList();
+        }
+    }
+}
+```
+
+com.alibaba.csp.sentinel.dashboard.rule.apollo.FlowRuleApolloPublisher
+```java
+package com.alibaba.csp.sentinel.dashboard.rule.apollo;
+
+import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.FlowRuleEntity;
+import com.alibaba.csp.sentinel.dashboard.rule.DynamicRulePublisher;
+import com.alibaba.csp.sentinel.datasource.Converter;
+import com.ctrip.framework.apollo.openapi.client.ApolloOpenApiClient;
+import com.ctrip.framework.apollo.openapi.dto.NamespaceReleaseDTO;
+import com.ctrip.framework.apollo.openapi.dto.OpenItemDTO;
+import org.apache.commons.lang.time.FastDateFormat;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import java.util.Date;
+import java.util.List;
+
+/**
+ * @author eddie.lee
+ * @ProjectName sentinel-parent
+ * @Package com.alibaba.csp.sentinel.dashboard.rule.apollo
+ * @ClassName FlowRuleApolloPublisher
+ * @description
+ * @date created in 2021-03-22 10:14
+ * @modified by
+ */
+@Component("flowRuleApolloPublisher")
+public class FlowRuleApolloPublisher implements DynamicRulePublisher<List<FlowRuleEntity>> {
+
+    @Autowired
+    private Converter<List<FlowRuleEntity>, String> converter;
+
+    private static FastDateFormat FASTDATEFORMAT = FastDateFormat.getInstance("yyyyMMddHHmmss");
+
+    /**
+     * Publish rules to remote rule configuration center for given application name.
+     * 将给定应用程序名称的规则发布到远程规则配置中心。
+     *
+     * @param appName app name
+     * @param rules   list of rules to push
+     * @throws Exception if some error occurs
+     */
+    @Override
+    public void publish(String appName, List<FlowRuleEntity> rules) throws Exception {
+        if (rules == null) {
+            return;
+        }
+        ApolloOpenApiClient client = ApolloConfigUtil.createApolloOpenApiClient(appName);
+        if (client != null) {
+            // 具体的流控规则id
+            String flowDataId = ApolloConfigUtil.getFlowDataId(appName);
+            // apollo的应用服务appId
+            String appId = ApolloConfigUtil.getAppIdWithAppName(appName);
+            // 当前时间
+            String dateFormat = FASTDATEFORMAT.format(new Date());
+
+            OpenItemDTO openItemDTO = new OpenItemDTO();
+            openItemDTO.setKey(flowDataId);
+            openItemDTO.setValue(converter.convert(rules));
+            openItemDTO.setComment("modify: " + dateFormat);
+            openItemDTO.setDataChangeLastModifiedBy(ApolloConfig.USERNAME);
+            openItemDTO.setDataChangeCreatedBy(ApolloConfig.USERNAME);
+            // 1. 修改操作, 预发布
+            client.createOrUpdateItem(appId, ApolloConfig.ENV, ApolloConfig.CLUSTER_NAME, ApolloConfig.NAMESPACE, openItemDTO);
+            // 2. 真正的进行发布
+            NamespaceReleaseDTO releaseDTO = new NamespaceReleaseDTO();
+            releaseDTO.setEmergencyPublish(true);
+            releaseDTO.setReleaseComment("modify comment: " + dateFormat);
+            releaseDTO.setReleaseTitle("发布新属性: " + dateFormat);
+            releaseDTO.setReleasedBy(ApolloConfig.USERNAME);
+            client.publishNamespace(appId, ApolloConfig.ENV, ApolloConfig.CLUSTER_NAME, ApolloConfig.NAMESPACE, releaseDTO);
+        } else {
+            System.err.println("客户端为空，发布失败!");
+        }
+    }
+}
+```
+
+com.alibaba.csp.sentinel.dashboard.controller.FlowControllerV1
+```java
+/*
+ * Copyright 1999-2018 Alibaba Group Holding Ltd.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.alibaba.csp.sentinel.dashboard.controller;
+
+import java.util.Date;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+
+import com.alibaba.csp.sentinel.dashboard.auth.AuthAction;
+import com.alibaba.csp.sentinel.dashboard.auth.AuthService.PrivilegeType;
+import com.alibaba.csp.sentinel.dashboard.rule.DynamicRuleProvider;
+import com.alibaba.csp.sentinel.dashboard.rule.DynamicRulePublisher;
+import com.alibaba.csp.sentinel.util.StringUtil;
+
+import com.alibaba.csp.sentinel.dashboard.client.SentinelApiClient;
+import com.alibaba.csp.sentinel.dashboard.datasource.entity.rule.FlowRuleEntity;
+import com.alibaba.csp.sentinel.dashboard.discovery.MachineInfo;
+import com.alibaba.csp.sentinel.dashboard.domain.Result;
+import com.alibaba.csp.sentinel.dashboard.repository.rule.InMemoryRuleRepositoryAdapter;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * Flow rule controller.
+ *
+ * @author leyou
+ * @author Eric Zhao
+ */
+@RestController
+@RequestMapping(value = "/v1/flow")
+public class FlowControllerV1 {
+
+    private final Logger logger = LoggerFactory.getLogger(FlowControllerV1.class);
+
+    @Autowired
+    private InMemoryRuleRepositoryAdapter<FlowRuleEntity> repository;
+
+    @Autowired
+    private SentinelApiClient sentinelApiClient;
+
+    //*******************************[修改或者添加部分]***********************************
+    @Autowired
+    @Qualifier("flowRuleApolloProvider")
+    private DynamicRuleProvider<List<FlowRuleEntity>> ruleProvider;
+    @Autowired
+    @Qualifier("flowRuleApolloPublisher")
+    private DynamicRulePublisher<List<FlowRuleEntity>> rulePublisher;
+    //*******************************[修改或者添加部分]***********************************
+
+    @GetMapping("/rules")
+    @AuthAction(PrivilegeType.READ_RULE)
+    public Result<List<FlowRuleEntity>> apiQueryMachineRules(@RequestParam String app,
+                                                             @RequestParam String ip,
+                                                             @RequestParam Integer port) {
+
+        if (StringUtil.isEmpty(app)) {
+            return Result.ofFail(-1, "app can't be null or empty");
+        }
+        if (StringUtil.isEmpty(ip)) {
+            return Result.ofFail(-1, "ip can't be null or empty");
+        }
+        if (port == null) {
+            return Result.ofFail(-1, "port can't be null");
+        }
+        try {
+            //*******************************[修改或者添加部分]***********************************
+            // List<FlowRuleEntity> rules = sentinelApiClient.fetchFlowRuleOfMachine(app, ip, port);
+            List<FlowRuleEntity> rules = ruleProvider.getRules(app);
+            //*******************************[修改或者添加部分]***********************************
+            rules = repository.saveAll(rules);
+            return Result.ofSuccess(rules);
+        } catch (Throwable throwable) {
+            logger.error("Error when querying flow rules", throwable);
+            return Result.ofThrowable(-1, throwable);
+        }
+    }
+
+    private <R> Result<R> checkEntityInternal(FlowRuleEntity entity) {
+        if (StringUtil.isBlank(entity.getApp())) {
+            return Result.ofFail(-1, "app can't be null or empty");
+        }
+        if (StringUtil.isBlank(entity.getIp())) {
+            return Result.ofFail(-1, "ip can't be null or empty");
+        }
+        if (entity.getPort() == null) {
+            return Result.ofFail(-1, "port can't be null");
+        }
+        if (StringUtil.isBlank(entity.getLimitApp())) {
+            return Result.ofFail(-1, "limitApp can't be null or empty");
+        }
+        if (StringUtil.isBlank(entity.getResource())) {
+            return Result.ofFail(-1, "resource can't be null or empty");
+        }
+        if (entity.getGrade() == null) {
+            return Result.ofFail(-1, "grade can't be null");
+        }
+        if (entity.getGrade() != 0 && entity.getGrade() != 1) {
+            return Result.ofFail(-1, "grade must be 0 or 1, but " + entity.getGrade() + " got");
+        }
+        if (entity.getCount() == null || entity.getCount() < 0) {
+            return Result.ofFail(-1, "count should be at lease zero");
+        }
+        if (entity.getStrategy() == null) {
+            return Result.ofFail(-1, "strategy can't be null");
+        }
+        if (entity.getStrategy() != 0 && StringUtil.isBlank(entity.getRefResource())) {
+            return Result.ofFail(-1, "refResource can't be null or empty when strategy!=0");
+        }
+        if (entity.getControlBehavior() == null) {
+            return Result.ofFail(-1, "controlBehavior can't be null");
+        }
+        int controlBehavior = entity.getControlBehavior();
+        if (controlBehavior == 1 && entity.getWarmUpPeriodSec() == null) {
+            return Result.ofFail(-1, "warmUpPeriodSec can't be null when controlBehavior==1");
+        }
+        if (controlBehavior == 2 && entity.getMaxQueueingTimeMs() == null) {
+            return Result.ofFail(-1, "maxQueueingTimeMs can't be null when controlBehavior==2");
+        }
+        if (entity.isClusterMode() && entity.getClusterConfig() == null) {
+            return Result.ofFail(-1, "cluster config should be valid");
+        }
+        return null;
+    }
+
+    @PostMapping("/rule")
+    @AuthAction(PrivilegeType.WRITE_RULE)
+    public Result<FlowRuleEntity> apiAddFlowRule(@RequestBody FlowRuleEntity entity) {
+        Result<FlowRuleEntity> checkResult = checkEntityInternal(entity);
+        if (checkResult != null) {
+            return checkResult;
+        }
+        entity.setId(null);
+        Date date = new Date();
+        entity.setGmtCreate(date);
+        entity.setGmtModified(date);
+        entity.setLimitApp(entity.getLimitApp().trim());
+        entity.setResource(entity.getResource().trim());
+        try {
+            entity = repository.save(entity);
+
+            publishRules(entity.getApp(), entity.getIp(), entity.getPort()).get(5000, TimeUnit.MILLISECONDS);
+            return Result.ofSuccess(entity);
+        } catch (Throwable t) {
+            Throwable e = t instanceof ExecutionException ? t.getCause() : t;
+            logger.error("Failed to add new flow rule, app={}, ip={}", entity.getApp(), entity.getIp(), e);
+            return Result.ofFail(-1, e.getMessage());
+        }
+    }
+
+    @PutMapping("/save.json")
+    @AuthAction(PrivilegeType.WRITE_RULE)
+    public Result<FlowRuleEntity> apiUpdateFlowRule(Long id, String app,
+                                                  String limitApp, String resource, Integer grade,
+                                                  Double count, Integer strategy, String refResource,
+                                                  Integer controlBehavior, Integer warmUpPeriodSec,
+                                                  Integer maxQueueingTimeMs) {
+        if (id == null) {
+            return Result.ofFail(-1, "id can't be null");
+        }
+        FlowRuleEntity entity = repository.findById(id);
+        if (entity == null) {
+            return Result.ofFail(-1, "id " + id + " dose not exist");
+        }
+        if (StringUtil.isNotBlank(app)) {
+            entity.setApp(app.trim());
+        }
+        if (StringUtil.isNotBlank(limitApp)) {
+            entity.setLimitApp(limitApp.trim());
+        }
+        if (StringUtil.isNotBlank(resource)) {
+            entity.setResource(resource.trim());
+        }
+        if (grade != null) {
+            if (grade != 0 && grade != 1) {
+                return Result.ofFail(-1, "grade must be 0 or 1, but " + grade + " got");
+            }
+            entity.setGrade(grade);
+        }
+        if (count != null) {
+            entity.setCount(count);
+        }
+        if (strategy != null) {
+            if (strategy != 0 && strategy != 1 && strategy != 2) {
+                return Result.ofFail(-1, "strategy must be in [0, 1, 2], but " + strategy + " got");
+            }
+            entity.setStrategy(strategy);
+            if (strategy != 0) {
+                if (StringUtil.isBlank(refResource)) {
+                    return Result.ofFail(-1, "refResource can't be null or empty when strategy!=0");
+                }
+                entity.setRefResource(refResource.trim());
+            }
+        }
+        if (controlBehavior != null) {
+            if (controlBehavior != 0 && controlBehavior != 1 && controlBehavior != 2) {
+                return Result.ofFail(-1, "controlBehavior must be in [0, 1, 2], but " + controlBehavior + " got");
+            }
+            if (controlBehavior == 1 && warmUpPeriodSec == null) {
+                return Result.ofFail(-1, "warmUpPeriodSec can't be null when controlBehavior==1");
+            }
+            if (controlBehavior == 2 && maxQueueingTimeMs == null) {
+                return Result.ofFail(-1, "maxQueueingTimeMs can't be null when controlBehavior==2");
+            }
+            entity.setControlBehavior(controlBehavior);
+            if (warmUpPeriodSec != null) {
+                entity.setWarmUpPeriodSec(warmUpPeriodSec);
+            }
+            if (maxQueueingTimeMs != null) {
+                entity.setMaxQueueingTimeMs(maxQueueingTimeMs);
+            }
+        }
+        Date date = new Date();
+        entity.setGmtModified(date);
+        try {
+            entity = repository.save(entity);
+            if (entity == null) {
+                return Result.ofFail(-1, "save entity fail: null");
+            }
+
+            publishRules(entity.getApp(), entity.getIp(), entity.getPort()).get(5000, TimeUnit.MILLISECONDS);
+            return Result.ofSuccess(entity);
+        } catch (Throwable t) {
+            Throwable e = t instanceof ExecutionException ? t.getCause() : t;
+            logger.error("Error when updating flow rules, app={}, ip={}, ruleId={}", entity.getApp(),
+                entity.getIp(), id, e);
+            return Result.ofFail(-1, e.getMessage());
+        }
+    }
+
+    @DeleteMapping("/delete.json")
+    @AuthAction(PrivilegeType.WRITE_RULE)
+    public Result<Long> apiDeleteFlowRule(Long id) {
+
+        if (id == null) {
+            return Result.ofFail(-1, "id can't be null");
+        }
+        FlowRuleEntity oldEntity = repository.findById(id);
+        if (oldEntity == null) {
+            return Result.ofSuccess(null);
+        }
+
+        try {
+            repository.delete(id);
+        } catch (Exception e) {
+            return Result.ofFail(-1, e.getMessage());
+        }
+        try {
+            publishRules(oldEntity.getApp(), oldEntity.getIp(), oldEntity.getPort()).get(5000, TimeUnit.MILLISECONDS);
+            return Result.ofSuccess(id);
+        } catch (Throwable t) {
+            Throwable e = t instanceof ExecutionException ? t.getCause() : t;
+            logger.error("Error when deleting flow rules, app={}, ip={}, id={}", oldEntity.getApp(),
+                oldEntity.getIp(), id, e);
+            return Result.ofFail(-1, e.getMessage());
+        }
+    }
+
+    private CompletableFuture<Void> publishRules(String app, String ip, Integer port) {
+        List<FlowRuleEntity> rules = repository.findAllByMachine(MachineInfo.of(app, ip, port));
+        //*******************************[修改或者添加部分]***********************************
+        try {
+            rulePublisher.publish(app, rules);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        //*******************************[修改或者添加部分]***********************************
+        return sentinelApiClient.setFlowRuleOfMachineAsync(app, ip, port, rules);
+    }
+}
+```
+
+## 2-13 sentinel-apollo-demo.apollo 监听流控与降级
+
+com.example.apollo.config.ApolloDataSourceListener
+```java
+package com.example.apollo.config;
+
+import com.alibaba.csp.sentinel.datasource.ReadableDataSource;
+import com.alibaba.csp.sentinel.datasource.apollo.ApolloDataSource;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowRule;
+import com.alibaba.csp.sentinel.slots.block.flow.FlowRuleManager;
+import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.TypeReference;
+import org.springframework.beans.factory.InitializingBean;
+
+import java.util.List;
+
+/**
+ * @author eddie.lee
+ * @ProjectName sentinel-apollo-demo
+ * @Package com.example.apollo.config
+ * @ClassName ApolloDataSourceListener
+ * @description
+ * @date created in 2021-03-22 12:42
+ * @modified by
+ */
+public class ApolloDataSourceListener implements InitializingBean {
+
+    private String applicationName;
+
+    // *-flow-rules
+    private static final String FLOW_RULE_TYPE = "flow";
+    private static final String FLOW_DATA_ID_POSTFIX = "-" + FLOW_RULE_TYPE + "-rules";
+
+    private static final String DEGRADE_RULE_TYPE = "degrade";
+    private static final String DEGRADE_DATA_ID_POSTFIX = "-" + DEGRADE_RULE_TYPE + "-rules";
+
+    public ApolloDataSourceListener(String applicationName) {
+        this.applicationName = applicationName;
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        initFlowRules();
+    }
+
+    /**
+     * 流控监听
+     */
+    private void initFlowRules() {
+        // apollo-demo-flow-rules
+        String flowRuleKey = applicationName + FLOW_DATA_ID_POSTFIX;
+        // 动态监听
+        ReadableDataSource<String, List<FlowRule>> flowRuleDataSource =
+                new ApolloDataSource<>("application",
+                        flowRuleKey,
+                        "[]",
+                        source -> JSON.parseObject(source, new TypeReference<List<FlowRule>>() {
+                        }));
+        // 刷新内存
+        FlowRuleManager.register2Property(flowRuleDataSource.getProperty());
+    }
+}
+```
+
+com.example.apollo.config.SentinelApolloConfig
+```java
+package com.example.apollo.config;
+
+import com.alibaba.csp.sentinel.annotation.aspectj.SentinelResourceAspect;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+/**
+ * @author eddie.lee
+ * @ProjectName sentinel-apollo-demo
+ * @Package com.example.apollo.config
+ * @ClassName Sentinel4ApolloConfig
+ * @description
+ * @date created in 2021-03-22 12:38
+ * @modified by
+ */
+@Configuration
+public class SentinelApolloConfig {
+
+    @Value("${spring.application.name}")
+    private String applicationName = "";
+
+    @Bean
+    @ConditionalOnMissingBean
+    public SentinelResourceAspect sentinelresourceaspect() {
+        return new SentinelResourceAspect();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public ApolloDataSourceListener apolloDataSourceListener() {
+        return new ApolloDataSourceListener(applicationName);
+    }
+}
+```
+
+在创建控制层与业务层
+
+com.example.apollo.controller.DemoController#test
+```java
+@GetMapping("/test")
+public String test() {
+    return flowService.test();
+}
+```
+
+com.example.apollo.service.impl.FlowServiceImpl
+```java
+@Service
+public class FlowServiceImpl implements FlowService {
+
+    /**
+     * test
+     *
+     * @return str
+     */
+    @SentinelResource(
+            value = "com.example.apollo.service.FlowService:test",
+            blockHandler = "testblockHandler"
+    )
+    @Override
+    public String test() {
+        System.out.println("正常执行");
+        return "test";
+    }
+
+    public String testblockHandler(BlockException e) {
+        System.err.println("流控执行： " + e);
+        return "流控执行";
+    }
+}
+```
+
+### 流控测试
+
+1. 连续疯狂请求 http://localhost:8081/test
+1. 打开 Sentinel 控制台 1.8.2 -  http://localhost:8080
+
+![](.README_images/cdacbdbd.png)
+
+#### Console打印
+```text
+流控执行： com.alibaba.csp.sentinel.slots.block.flow.FlowException
+流控执行： com.alibaba.csp.sentinel.slots.block.flow.FlowException
+正常执行
+正常执行
+正常执行
+正常执行
+流控执行： com.alibaba.csp.sentinel.slots.block.flow.FlowException
+```
+
+![](.README_images/176988ec.png)
+
+
+
+
+### 降级测试 (仿照流控)
+
+![](.README_images/f3ef1638.png)
+
+1. 仿照流控编写降级代码 DegradeRuleApolloProvider、DegradeRuleApolloPublisher
+1. 连续疯狂请求 http://localhost:8081/testDegrade
+1. 打开 Sentinel 控制台 1.8.2 -  http://localhost:8080
+1. 降级使用 - 异常数
+
+![](.README_images/7f75d684.png)
+
+#### Console打印
+```text
+----> 正常执行degrade方法
+----> 正常执行degrade方法
+----> 正常执行degrade方法
+----> 触发异常时的降级策略：java.lang.RuntimeException: 1.2.4.7 不等于 0, 抛出业务异常：0
+----> 触发降级流控策略：com.alibaba.csp.sentinel.slots.block.degrade.DegradeException
+----> 触发降级流控策略：com.alibaba.csp.sentinel.slots.block.degrade.DegradeException
+----> 触发降级流控策略：com.alibaba.csp.sentinel.slots.block.degrade.DegradeException
+----> 触发降级流控策略：com.alibaba.csp.sentinel.slots.block.degrade.DegradeException
+```
+
+![](.README_images/96cbe55a.png)
