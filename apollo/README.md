@@ -4,7 +4,7 @@
 
 - 版本
   - Sentinel 控制台 1.8.2
-  - 
+  - 链接：https://pan.baidu.com/s/1Hsyn4qcAhkWEFaI5rRksMw 提取码：m0eg 
 
 ##  2-1 本章概述
 
